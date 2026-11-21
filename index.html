@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Weather Intelligence</title>
+<style>
+:root{--red:#e62429;--cyan:#22e6ff;--bg:#07090d;--card:#0c1019;--line:#1a2439;--txt:#dbe7f2;--dim:#6b7d92;--ok:#3dffa0;--warn:#ffb020;--bad:#ff3b3b}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font:13px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;padding-bottom:30px}
+header{padding:26px 28px 6px}
+.kicker{letter-spacing:4px;color:var(--cyan);font:12px Consolas,monospace}
+.hero{display:flex;align-items:center;gap:18px;margin-top:6px}
+.big{font-size:96px;font-weight:800;color:var(--red);line-height:.9;letter-spacing:-4px}
+.h1{font-size:34px;font-weight:700;line-height:1.1}
+.sub{color:var(--dim);margin-top:6px;font-size:15px}
+.stats{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;padding:14px 28px}
+@media(max-width:1100px){.stats{grid-template-columns:repeat(3,1fr)}}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.stat b{display:block;font-size:22px;color:var(--cyan)}
+.stat span{font:10px Consolas,monospace;letter-spacing:1.5px;color:var(--dim)}
+.hqwrap{margin:0 28px;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.hqbar{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line);font:11px Consolas,monospace;color:var(--dim)}
+.dots i{display:inline-block;width:9px;height:9px;border-radius:50%;background:#2a3446;margin-right:6px}
+.live{color:var(--ok)}
+.hqbody{position:relative;background:#070d1d}
+#hqc{display:block;width:100%;height:auto}
+.side{position:absolute;top:18%;left:14px;background:#151c2c;border:1px solid var(--line);border-radius:10px;padding:6px;display:flex;flex-direction:column;gap:6px;z-index:2}
+.side a{color:var(--txt);text-decoration:none;font:10px Consolas,monospace;text-align:center;padding:8px 10px;border-radius:6px;letter-spacing:1px}
+.side a:hover{background:#26324a}
+.side a.on{background:#ffd84a;color:#111}
+.sticker{position:absolute;left:4%;bottom:6%;background:var(--red);color:#fff;padding:10px 16px;border-radius:8px;transform:rotate(-3deg);box-shadow:0 6px 18px rgba(0,0,0,.4);z-index:2}
+.sticker b{font-size:20px;display:block}
+.sticker span{font:11px Consolas,monospace;letter-spacing:1.5px}
+.grid{display:grid;grid-template-columns:300px 1fr 330px;gap:14px;padding:14px 28px}
+@media(max-width:1100px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+.panel h2{margin:0 0 10px;font:11px Consolas,monospace;letter-spacing:2px;color:var(--cyan);border-bottom:1px solid var(--line);padding-bottom:7px}
+button{background:#111826;color:var(--txt);border:1px solid #2a3750;border-radius:8px;padding:7px 11px;font:11px Consolas,monospace;letter-spacing:1px;cursor:pointer;margin:2px 0}
+button:hover{border-color:var(--cyan);color:var(--cyan)}
+button:disabled{opacity:.4;cursor:not-allowed}
+button.red{color:var(--red);border-color:#5a1a1d}
+input{background:#070b13;border:1px solid var(--line);color:var(--txt);padding:8px;font:inherit;width:100%;margin-bottom:8px;border-radius:8px}
+.row{display:flex;gap:6px;flex-wrap:wrap}
+.loc{display:flex;justify-content:space-between;align-items:center;padding:8px;border-bottom:1px solid var(--line);cursor:pointer;border-radius:6px}
+.loc.sel{background:rgba(34,230,255,.08);box-shadow:inset 2px 0 var(--cyan)}
+.agent{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px dashed var(--line)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:var(--dim)}
+.WORKING .dot{background:var(--cyan);box-shadow:0 0 8px var(--cyan)}
+.ERROR .dot{background:var(--bad)}
+.feed{height:300px;overflow:auto;font:12px Consolas,monospace}
+.feed div{padding:3px 0;border-bottom:1px solid #111a2a}
+.ok{color:var(--ok)}.err{color:var(--bad)}.warn{color:var(--warn)}.hint{color:var(--dim);font-size:11px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:6px;border-bottom:1px solid var(--line);text-align:left}
+th{color:var(--cyan);font:normal 11px Consolas,monospace;letter-spacing:1px}
+.cur{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0}
+.cur div{background:#070b13;border:1px solid var(--line);border-radius:8px;padding:8px}
+.cur b{display:block;font-size:17px;color:var(--cyan)}
+.cur span{font:10px Consolas,monospace;color:var(--dim);letter-spacing:1px}
+.alert{border:1px solid #5a1a1d;background:rgba(230,36,41,.1);border-radius:8px;padding:6px 8px;margin:4px 0;color:#ff8a8a}
+.sugg div{padding:7px;cursor:pointer;border-bottom:1px solid var(--line);border-radius:6px}
+.sugg div:hover{background:rgba(34,230,255,.08)}
+.mis{padding:7px 0;border-bottom:1px dashed var(--line)}
+.h3{font:11px Consolas,monospace;color:var(--cyan);margin:12px 0 6px;letter-spacing:1px}
+#prof{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9;align-items:center;justify-content:center}
+#prof .panel{width:min(480px,92vw)}
+#prof table td:first-child{color:var(--cyan);width:38%;vertical-align:top}
+</style></head>
+<body>
+<header>
+ <div class="kicker">WEATHER INTELLIGENCE</div>
+ <div class="hero"><span class="big" id="bigN">8</span>
+  <div><div class="h1" id="bigT">bots. 4 squads.</div><div class="h1">real weather. live now.</div><div class="sub">"THE PLANET IS UNDER SURVEILLANCE."</div></div></div>
+</header>
+<div class="stats" id="stats"></div>
+<div class="hqwrap" id="sec-hq" style="margin-top:14px">
+ <div class="hqbar"><span class="dots"><i></i><i></i><i></i></span><span class="live">● LIVE · <span id="hqSub">—</span></span></div>
+ <div class="hqbody">
+  <nav class="side">
+   <a href="#sec-hq" class="on">HQ</a><a href="#sec-missions">MISSIONS</a><a href="#sec-loc">LOCATIONS</a><a href="#sec-api">APIS</a><a href="#sec-feed">FEED</a>
+  </nav>
+  <canvas id="hqc"></canvas>
+  <div class="sticker"><b>WEATHER INTEL</b><span id="sticker">—</span></div>
+ </div>
+</div>
+<div class="grid">
+ <div>
+  <div class="panel" id="sec-loc"><h2>MONITORED LOCATIONS</h2><input id="q" placeholder="Search any city (e.g. Dhaka)"><div id="sugg" class="sugg"></div><div id="locs"></div></div>
+  <div class="panel" style="margin-top:14px"><h2>AGENTS · SQUADS</h2><div id="agents"></div></div>
+ </div>
+ <div>
+  <div class="panel"><h2 id="dtitle">LOCATION INTEL</h2><div id="detail"></div></div>
+  <div class="panel" style="margin-top:14px"><h2>COMPARISON</h2><div id="compare"></div></div>
+  <div class="panel" id="sec-api" style="margin-top:14px"><h2>API CATALOG</h2><div id="api"></div></div>
+ </div>
+ <div>
+  <div class="panel" id="sec-missions"><h2>MISSIONS</h2>
+   <div class="row"><button id="bScan">GLOBAL SCAN</button><button id="bHealth">API HEALTH CHECK</button></div>
+   <div class="row"><button id="bAuto">AUTO SCAN: OFF</button><button id="bCsv">EXPORT CSV</button></div>
+   <div id="missions"></div></div>
+  <div class="panel" id="sec-feed" style="margin-top:14px"><h2>LIVE FEED</h2><div class="feed" id="feed"></div></div>
+ </div>
+</div>
+<div id="prof"><div class="panel">
+ <div class="row" style="justify-content:space-between;align-items:center"><h2 id="pname" style="border:0;margin:0;font:700 14px system-ui;color:var(--txt)"></h2><button onclick="closeProfile()">CLOSE</button></div>
+ <div id="pbody" style="margin-top:10px"></div></div></div>
+
+<script>
+const AGENTS=[
+{id:'THOR',role:'STORM COMMAND',squad:'THUNDER'},
+{id:'STORM',role:'FORECAST OPERATIONS',squad:'THUNDER'},
+{id:'VISION',role:'WEATHER ANALYTICS',squad:'FROST'},
+{id:'FROST',role:'TEMPERATURE MONITORING',squad:'FROST'},
+{id:'RADAR',role:'PRECIPITATION INTELLIGENCE',squad:'RADAR'},
+{id:'HAWKEYE',role:'ALERT SURVEILLANCE',squad:'RADAR'},
+{id:'IRON MAN',role:'API ENGINEERING',squad:'STARK'},
+{id:'NICK FURY',role:'COMMANDER',squad:'STARK'}];
+const SQUADS={THUNDER:'Severe weather, storms, wind',FROST:'Temperature, heat & cold',RADAR:'Rain, precipitation, forecasts',STARK:'API integration & system health'};
+const DEFAULTS=[{id:'dac',name:'Dhaka',country:'Bangladesh',lat:23.8103,lon:90.4125},{id:'nyc',name:'New York',country:'USA',lat:40.7128,lon:-74.006},{id:'lon',name:'London',country:'UK',lat:51.5072,lon:-0.1276},{id:'tyo',name:'Tokyo',country:'Japan',lat:35.6762,lon:139.6503}];
+const COL={THOR:'#e62429',STORM:'#9be7ff',VISION:'#b36bff',FROST:'#6fd8ff',RADAR:'#3dffa0',HAWKEYE:'#ffb020','IRON MAN':'#e62429','NICK FURY':'#22e6ff'};
+const HAIR=['#2b1d12','#0d0d0d','#c9a24a','#7a2e1a','#3a3a3a','#1b3b5a','#8a8a8a','#4b2a6b'];
+// Desk grid positions on the 12x12 floor
+const DESKS={THOR:[2,3],STORM:[5,3],VISION:[8,3],FROST:[11,3],RADAR:[2,8],HAWKEYE:[5,8],'IRON MAN':[8,8],'NICK FURY':[11,8]};
+
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const now=()=>new Date().toTimeString().slice(0,8);
+const WMO=c=>c===0?'Clear':c<=3?'Partly cloudy':(c===45||c===48)?'Fog':(c>=51&&c<=57)?'Drizzle':(c>=61&&c<=67)?'Rain':(c>=71&&c<=77)?'Snow':(c>=80&&c<=82)?'Rain showers':(c>=85&&c<=86)?'Snow showers':c>=95?'Thunderstorm':'Unknown';
+
+const S={locs:[],data:{},hist:{},sel:null,rec:0,calls:0,feed:[],missions:[],agents:{},agentStats:{},auto:null,busy:false,
+ api:{'OPEN-METEO':{st:'DISCOVERED',ms:null,at:null,err:null},'RAINVIEWER':{st:'DISCOVERED',ms:null,at:null,err:null}}};
+try{S.locs=JSON.parse(localStorage.getItem('wi.locs'))||[];}catch(e){}
+if(!S.locs.length)S.locs=DEFAULTS.slice();
+S.sel=S.locs[0]?.id||null;
+const saveLocs=()=>{try{localStorage.setItem('wi.locs',JSON.stringify(S.locs))}catch(e){}};
+const AS=id=>S.agentStats[id]||(S.agentStats[id]={records:0,history:[],last:null});
+const bump=(id,n=1)=>{AS(id).records+=n;};
+const involve=(id,mission)=>{const a=AS(id);a.history.push(`${now()} · ${mission}`);a.last=now();};
+
+function log(who,msg,cls=''){S.feed.unshift(`<div><span class="hint">[${now()}]</span> <b>${esc(who)}</b> — <span class="${cls}">${esc(msg)}</span></div>`);S.feed=S.feed.slice(0,200);renderFeed();}
+function setAgent(id,st,task='standby'){S.agents[id]={st,task};if(st==='WORKING')AS(id).last=now();renderAgents();}
+function addMission(name,squad){const m={name,squad,status:'RUNNING',start:now(),end:null};S.missions.unshift(m);renderMissions();return m;}
+function finishMission(m,status){m.status=status;m.end=now();renderMissions();}
+
+async function getJSON(url){const t0=performance.now();const r=await fetch(url);const ms=Math.round(performance.now()-t0);S.calls++;if(!r.ok)throw new Error('HTTP '+r.status);return{j:await r.json(),ms};}
+const fcUrl=l=>`https://api.open-meteo.com/v1/forecast?timezone=auto&forecast_days=2&latitude=${l.lat}&longitude=${l.lon}`+
+ `&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,cloud_cover,pressure_msl,wind_speed_10m,wind_direction_10m`+
+ `&hourly=temperature_2m,precipitation_probability,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max`;
+async function fetchLoc(l){const{j,ms}=await getJSON(fcUrl(l));
+ Object.assign(S.api['OPEN-METEO'],{ms,at:new Date(),err:null});
+ S.data[l.id]={cur:j.current,units:j.current_units,h:j.hourly,d:j.daily,at:new Date()};
+ S.rec+=j.hourly.time.length+1;}
+function alertsFor(id){const d=S.data[id];if(!d)return[];const c=d.cur,a=[];
+ if(c.temperature_2m>=35)a.push(`HEAT WARNING — ${c.temperature_2m}°C`);
+ if(c.temperature_2m<=0)a.push(`COLD WARNING — ${c.temperature_2m}°C`);
+ if(c.wind_speed_10m>=60)a.push(`STRONG WIND — ${c.wind_speed_10m} km/h`);
+ if(c.weather_code>=95)a.push(`THUNDERSTORM — ${WMO(c.weather_code)}`);
+ const p=Math.max(...d.h.precipitation_probability.slice(0,24).map(v=>v??0));
+ if(p>=70)a.push(`HEAVY RAIN LIKELY — ${p}% in next 24h`);
+ return a;}
+const rainMax24=id=>{const d=S.data[id];return d?Math.max(...d.h.precipitation_probability.slice(0,24).map(v=>v??0)):null;};
+const totalAlerts=()=>S.locs.reduce((n,l)=>n+alertsFor(l.id).length,0);
+const apiConnected=()=>['OPEN-METEO','RAINVIEWER'].filter(k=>['HEALTHY','DEGRADED','CONNECTED'].includes(S.api[k].st)).length;
+
+async function checkRadar(){
+ const rv=S.api['RAINVIEWER'];
+ try{const{j,ms}=await getJSON('https://api.rainviewer.com/public/weather-maps.json');
+  const past=j.radar?.past||[],last=past[past.length-1];
+  if(!last)throw new Error('no radar frames returned');
+  S.api['RAINVIEWER']={st:ms<2000?'HEALTHY':'DEGRADED',ms,at:new Date(),err:null,frames:past.length,latest:new Date(last.time*1000).toTimeString().slice(0,5)};
+  return true;
+ }catch(e){S.api['RAINVIEWER']={...rv,st:'FAILED',err:e.message,at:new Date()};return false;}}
+
+async function globalScan(){
+ if(S.busy)return;
+ if(!S.locs.length){log('STORM','No locations monitored — add one first.','warn');return;}
+ S.busy=true;setBtns();
+ const m=addMission('GLOBAL SCAN','ALL');['STORM','FROST','RADAR','HAWKEYE','VISION','NICK FURY'].forEach(k=>involve(k,'GLOBAL SCAN'));
+ log('NICK FURY',`GLOBAL SCAN started — ${S.locs.length} locations.`,'ok');
+ ['STORM','FROST','RADAR','HAWKEYE'].forEach(k=>setAgent(k,'WORKING','collecting'));
+ let okN=0;
+ for(const l of S.locs){
+  try{await fetchLoc(l);okN++;['STORM','FROST','RADAR','HAWKEYE'].forEach(k=>bump(k));const c=S.data[l.id].cur;
+   log('FROST',`${l.name}: ${c.temperature_2m}°C, ${WMO(c.weather_code)}`);
+   alertsFor(l.id).forEach(x=>log('HAWKEYE',`${l.name} — ${x}`,'err'));
+  }catch(e){S.api['OPEN-METEO'].st='DEGRADED';S.api['OPEN-METEO'].err=e.message;log('IRON MAN',`${l.name} failed: ${e.message}`,'err');}
+  renderAll();}
+ setAgent('RADAR','WORKING','radar frames');
+ const rOK=await checkRadar();bump('RADAR');involve('RADAR','GLOBAL SCAN · RainViewer');
+ const rv=S.api['RAINVIEWER'];
+ log('RADAR',rOK?`RainViewer: ${rv.frames} past radar frames, latest ${rv.latest}`:`RainViewer check failed: ${rv.err}`,rOK?'ok':'err');
+ ['STORM','FROST','RADAR','HAWKEYE'].forEach(k=>setAgent(k,'IDLE'));
+ if(okN){setAgent('VISION','WORKING','comparing');
+  const t=S.locs.filter(l=>S.data[l.id]).map(l=>S.data[l.id].cur.temperature_2m);
+  if(t.length>1)log('VISION',`Spread across ${t.length} locations: ${(Math.max(...t)-Math.min(...t)).toFixed(1)}°C`);
+  setAgent('VISION','IDLE');
+  if(S.api['OPEN-METEO'].st!=='FAILED')S.api['OPEN-METEO'].st=okN===S.locs.length?'HEALTHY':'DEGRADED';}
+ finishMission(m,okN===S.locs.length?'COMPLETED':'FAILED');
+ log('NICK FURY',`MISSION COMPLETED — ${okN}/${S.locs.length} locations updated.`,okN===S.locs.length?'ok':'err');
+ S.busy=false;setBtns();renderAll();}
+
+async function healthCheck(){
+ if(S.busy)return;S.busy=true;setBtns();
+ const m=addMission('API HEALTH CHECK','STARK');involve('IRON MAN','API HEALTH CHECK');bump('IRON MAN');setAgent('IRON MAN','WORKING','testing endpoint');
+ try{const{ms}=await getJSON('https://api.open-meteo.com/v1/forecast?latitude=0&longitude=0&current=temperature_2m');
+  S.api['OPEN-METEO']={st:ms<2000?'HEALTHY':'DEGRADED',ms,at:new Date(),err:null};
+  log('IRON MAN',`Open-Meteo responded in ${ms} ms — ${S.api['OPEN-METEO'].st}`,ms<2000?'ok':'warn');
+  finishMission(m,'COMPLETED');
+ }catch(e){S.api['OPEN-METEO']={...S.api['OPEN-METEO'],st:'FAILED',err:e.message,at:new Date()};
+  log('IRON MAN','Open-Meteo check failed: '+e.message,'err');finishMission(m,'FAILED');}
+ setAgent('IRON MAN',S.api['OPEN-METEO'].st==='FAILED'?'ERROR':'IDLE');S.busy=false;setBtns();renderAll();}
+
+async function loadHistory(id){
+ const l=S.locs.find(x=>x.id===id);if(!l)return;
+ const end=new Date(Date.now()-5*864e5).toISOString().slice(0,10);
+ const start=new Date(Date.now()-11*864e5).toISOString().slice(0,10);
+ const m=addMission('HISTORY PULL · '+l.name,'VISION');setAgent('VISION','WORKING','archive');
+ try{const{j}=await getJSON(`https://archive-api.open-meteo.com/v1/archive?timezone=auto&latitude=${l.lat}&longitude=${l.lon}&start_date=${start}&end_date=${end}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum`);
+  S.hist[id]=j.daily.time.map((t,i)=>({t,max:j.daily.temperature_2m_max[i],min:j.daily.temperature_2m_min[i],p:j.daily.precipitation_sum[i]}));
+  S.rec+=S.hist[id].length;bump('VISION',S.hist[id].length);involve('VISION',`HISTORY PULL · ${l.name}`);
+  log('VISION',`${l.name}: ${S.hist[id].length} historical days retrieved.`,'ok');finishMission(m,'COMPLETED');
+ }catch(e){log('VISION',`History failed for ${l.name}: ${e.message}`,'err');finishMission(m,'FAILED');}
+ setAgent('VISION','IDLE');renderAll();}
+
+let searchT;
+$('q').oninput=e=>{clearTimeout(searchT);const q=e.target.value.trim();if(q.length<2){$('sugg').innerHTML='';return;}searchT=setTimeout(()=>searchGeo(q),350);};
+async function searchGeo(q){
+ try{const r=await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=5&language=en&format=json`);
+  const res=(await r.json()).results||[];
+  $('sugg').innerHTML=res.length?res.map((x,i)=>`<div data-i="${i}">${esc(x.name)}, ${esc(x.admin1||'')} ${esc(x.country||'')} <span class="hint">${x.latitude.toFixed(2)}, ${x.longitude.toFixed(2)}</span></div>`).join(''):'<div class="hint">No matches.</div>';
+  $('sugg').onclick=e=>{const d=e.target.closest('[data-i]');if(d)addLoc(res[+d.dataset.i]);};
+ }catch(e){$('sugg').innerHTML=`<div class="err">Search failed: ${esc(e.message)}</div>`;}}
+
+async function addLoc(x){
+ if(S.locs.some(l=>Math.abs(l.lat-x.latitude)<0.01&&Math.abs(l.lon-x.longitude)<0.01)){log('STORM','Location already monitored.','warn');return;}
+ const l={id:Date.now().toString(36),name:x.name,country:x.country||'',lat:x.latitude,lon:x.longitude};
+ S.locs.push(l);S.sel=l.id;saveLocs();$('q').value='';$('sugg').innerHTML='';
+ log('STORM',`Surveillance added: ${l.name}`,'ok');renderAll();
+ try{await fetchLoc(l);log('FROST',`${l.name} first reading: ${S.data[l.id].cur.temperature_2m}°C`);}
+ catch(e){log('IRON MAN',`${l.name} fetch failed: ${e.message}`,'err');}
+ renderAll();}
+
+function removeLoc(id){const l=S.locs.find(x=>x.id===id);if(!l)return;
+ S.locs=S.locs.filter(x=>x.id!==id);delete S.data[id];delete S.hist[id];
+ if(S.sel===id)S.sel=S.locs[0]?.id||null;saveLocs();log('STORM',`Surveillance removed: ${l.name}`,'warn');renderAll();}
+
+$('locs').onclick=e=>{const rm=e.target.dataset.rm;if(rm){removeLoc(rm);return;}const el=e.target.closest('[data-id]');if(el){S.sel=el.dataset.id;renderAll();}};
+$('detail').onclick=e=>{const h=e.target.dataset.hist;if(h)loadHistory(h);};
+$('bScan').onclick=globalScan;
+$('bHealth').onclick=healthCheck;
+$('bAuto').onclick=()=>{if(S.auto){clearInterval(S.auto);S.auto=null;log('NICK FURY','Auto scan disabled.','warn');}
+ else{S.auto=setInterval(globalScan,15*60*1000);log('NICK FURY','Auto scan enabled — every 15 min.','ok');}
+ $('bAuto').textContent='AUTO SCAN: '+(S.auto?'ON':'OFF');};
+$('bCsv').onclick=()=>{
+ const rows=[['location','time','temp_c','precip_prob_pct','wind_kmh']];
+ S.locs.forEach(l=>{const d=S.data[l.id];if(!d)return;d.h.time.forEach((t,i)=>rows.push([l.name,t,d.h.temperature_2m[i],d.h.precipitation_probability[i],d.h.wind_speed_10m[i]]));});
+ if(rows.length===1){log('STORM','Nothing to export yet — run a scan.','warn');return;}
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.map(r=>r.join(',')).join('\n')],{type:'text/csv'}));a.download='weather-records.csv';a.click();
+ log('VISION',`Exported ${rows.length-1} hourly records.`,'ok');};
+
+function spark(vals){const w=640,h=150,mn=Math.min(...vals),mx=Math.max(...vals),r=(mx-mn)||1;
+ const pts=vals.map((v,i)=>`${(i/(vals.length-1))*w},${h-((v-mn)/r)*(h-24)-12}`).join(' ');
+ return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}"><polyline fill="none" stroke="#22e6ff" stroke-width="2" points="${pts}"/>
+ <text x="4" y="12" fill="#e62429" font-size="11">MAX ${mx.toFixed(1)}°C</text><text x="4" y="${h-2}" fill="#e62429" font-size="11">MIN ${mn.toFixed(1)}°C</text></svg>`;}
+
+function renderStats(){
+ const running=S.missions.filter(m=>m.status==='RUNNING').length;
+ const cells=[['AGENTS ONLINE',AGENTS.length],['ACTIVE SQUADS',Object.keys(SQUADS).length],['APIs CONNECTED',apiConnected()],['LOCATIONS',S.locs.length],['ACTIVE MISSIONS',running],['RECORDS COLLECTED',S.rec],['ALERTS DETECTED',totalAlerts()]];
+ $('stats').innerHTML=cells.map(([k,v])=>`<div class="stat"><b>${v}</b><span>${k}</span></div>`).join('');
+ $('bigN').textContent=AGENTS.length;$('bigT').textContent=`bots. ${Object.keys(SQUADS).length} squads.`;
+ const working=AGENTS.filter(a=>(S.agents[a.id]||{}).st==='WORKING').length;
+ $('sticker').textContent=`${AGENTS.length} BOTS · ${working} WORKING`;
+ $('hqSub').textContent=`${running} RUNNING MISSIONS · ${S.locs.length} LOCATIONS`;}
+
+function renderLocs(){
+ $('locs').innerHTML=S.locs.map(l=>{const d=S.data[l.id];const t=d?d.cur.temperature_2m+'°C':'—';
+  return `<div class="loc ${l.id===S.sel?'sel':''}" data-id="${esc(l.id)}"><div><b>${esc(l.name)}</b><div class="hint">${esc(l.country)}</div></div><div>${t} <button class="red" data-rm="${esc(l.id)}">X</button></div></div>`;}).join('')||'<p class="hint">No locations. Search above to add one.</p>';}
+
+function renderAgents(){
+ $('agents').innerHTML=AGENTS.map(a=>{const s=S.agents[a.id]||{st:'IDLE',task:'standby'};
+  return `<div class="agent ${s.st}"><div><span class="dot"></span><b>${a.id}</b> <span class="hint">${a.role}</span><div class="hint">SQUAD ${a.squad} · ${esc(s.task)}</div></div><span class="hint">${s.st}</span></div>`;}).join('')
+  +`<div class="hint" style="margin-top:8px">${Object.entries(SQUADS).map(([k,v])=>`<div><b style="color:var(--cyan)">${k}</b> — ${v}</div>`).join('')}</div>`;}
+
+function renderDetail(){
+ const l=S.locs.find(x=>x.id===S.sel),d=l&&S.data[l.id];
+ $('dtitle').textContent=l?'LOCATION INTEL · '+l.name.toUpperCase():'LOCATION INTEL';
+ if(!l){$('detail').innerHTML='<p class="hint">Select or add a location.</p>';return;}
+ if(!d){$('detail').innerHTML='<p class="hint">No data yet — run a Global Scan.</p>';return;}
+ const c=d.cur,u=d.units;
+ const cells=[['TEMP',c.temperature_2m+u.temperature_2m],['FEELS LIKE',c.apparent_temperature+u.apparent_temperature],['HUMIDITY',c.relative_humidity_2m+'%'],['WIND',c.wind_speed_10m+' '+u.wind_speed_10m],['PRECIP',c.precipitation+' '+u.precipitation],['PRESSURE',c.pressure_msl+' hPa'],['CLOUD',c.cloud_cover+'%'],['CONDITION',WMO(c.weather_code)]];
+ const al=alertsFor(l.id).map(a=>`<div class="alert">${esc(a)}</div>`).join('')||'<p class="hint">No active alerts.</p>';
+ const daily=d.d.time.map((t,i)=>`<tr><td>${esc(t)}</td><td>${d.d.temperature_2m_min[i]} / ${d.d.temperature_2m_max[i]} °C</td><td>${d.d.precipitation_probability_max[i]??'—'}%</td></tr>`).join('');
+ const hh=S.hist[l.id];
+ const hist=hh?`<table><tr><th>DATE</th><th>MIN / MAX</th><th>PRECIP</th></tr>${hh.map(r=>`<tr><td>${r.t}</td><td>${r.min} / ${r.max} °C</td><td>${r.p} mm</td></tr>`).join('')}</table>`:`<button data-hist="${esc(l.id)}">LOAD 7-DAY HISTORY</button>`;
+ $('detail').innerHTML=`<div class="hint">Source: Open-Meteo · updated ${d.at.toTimeString().slice(0,8)} · ${l.lat.toFixed(3)}, ${l.lon.toFixed(3)}</div>
+ <div class="cur">${cells.map(([k,v])=>`<div><b>${esc(v)}</b><span>${k}</span></div>`).join('')}</div>
+ <div class="h3">48-HOUR TEMPERATURE</div>${spark(d.h.temperature_2m)}
+ <div class="h3">ALERTS</div>${al}
+ <div class="h3">2-DAY FORECAST</div><table><tr><th>DATE</th><th>MIN / MAX</th><th>RAIN PROB</th></tr>${daily}</table>
+ <div class="h3">HISTORY (ARCHIVE)</div>${hist}`;}
+
+function renderCompare(){
+ const rows=S.locs.filter(l=>S.data[l.id]).map(l=>{const c=S.data[l.id].cur;
+  return `<tr><td>${esc(l.name)}</td><td>${c.temperature_2m}°</td><td>${c.apparent_temperature}°</td><td>${c.relative_humidity_2m}%</td><td>${c.wind_speed_10m}</td><td>${rainMax24(l.id)}%</td><td>${WMO(c.weather_code)}</td></tr>`;}).join('');
+ $('compare').innerHTML=rows?`<table><tr><th>CITY</th><th>TEMP</th><th>FEELS</th><th>HUM</th><th>WIND km/h</th><th>RAIN 24H</th><th>SKY</th></tr>${rows}</table>`:'<p class="hint">Run a scan to compare locations.</p>';}
+
+function renderApi(){
+ const o=S.api['OPEN-METEO'],rv=S.api['RAINVIEWER'];
+ const oc={HEALTHY:'ok',CONNECTED:'ok',DEGRADED:'warn',FAILED:'err'}[o.st]||'';
+ const rc={HEALTHY:'ok',DEGRADED:'warn',FAILED:'err'}[rv.st]||'';
+ const others=[['OpenWeatherMap','NEEDS API KEY','Not integrated'],['WeatherAPI','NEEDS API KEY','Not integrated'],['NOAA / NWS','DISCOVERED','Not integrated (US only)'],['MET Norway','DISCOVERED','Not integrated']];
+ $('api').innerHTML=`<table><tr><th>API</th><th>STATUS</th><th>LATENCY</th><th>LAST CHECKED</th></tr>
+ <tr><td><b>Open-Meteo</b><div class="hint">forecast · archive · geocoding</div>${o.err?`<div class="err hint">${esc(o.err)}</div>`:''}</td><td class="${oc}">${o.st}</td><td>${o.ms??'—'} ms</td><td>${o.at?o.at.toTimeString().slice(0,8):'—'}</td></tr>
+ <tr><td><b>RainViewer</b><div class="hint">radar frames · precipitation</div>${rv.err?`<div class="err hint">${esc(rv.err)}</div>`:''}</td><td class="${rc}">${rv.st}</td><td>${rv.ms??'—'} ms</td><td>${rv.at?rv.at.toTimeString().slice(0,8):'—'}</td></tr>
+ ${others.map(([n,s,note])=>`<tr><td><b>${n}</b><div class="hint">${note}</div></td><td>${s}</td><td>—</td><td>—</td></tr>`).join('')}</table>
+ <p class="hint">Open-Meteo and RainViewer are connected. Other APIs are listed for reference and are not called. Radar data © RainViewer.</p>`;}
+
+function renderMissions(){
+ $('missions').innerHTML=S.missions.slice(0,8).map(m=>`<div class="mis"><b>${esc(m.name)}</b> <span class="${m.status==='COMPLETED'?'ok':m.status==='FAILED'?'err':'warn'}">${m.status}</span><div class="hint">${esc(m.squad)} · ${m.start} → ${m.end||'…'}</div></div>`).join('')||'<p class="hint">No missions run yet.</p>';
+ renderStats();}
+
+function renderFeed(){$('feed').innerHTML=S.feed.join('');}
+function setBtns(){$('bScan').disabled=S.busy;$('bHealth').disabled=S.busy;}
+function renderAll(){renderStats();renderLocs();renderAgents();renderDetail();renderCompare();renderApi();renderMissions();renderFeed();}
+
+function openProfile(id){const a=AGENTS.find(x=>x.id===id),s=S.agents[id]||{st:'IDLE',task:'standby'},st=AS(id);
+ const apis=id==='IRON MAN'?'Open-Meteo (health check, archive)':id==='NICK FURY'?'Open-Meteo (all squads) · RainViewer':id==='RADAR'?'Open-Meteo (forecast) · RainViewer (radar frames)':'Open-Meteo (forecast, current)';
+ $('pname').textContent=`${a.id} — ${a.role}`;
+ $('pbody').innerHTML=`<table>
+ <tr><td>Squad</td><td>${a.squad} · ${esc(SQUADS[a.squad])}</td></tr>
+ <tr><td>Current mission</td><td>${esc(s.task)}</td></tr>
+ <tr><td>Costume</td><td>${esc(COSTUME_NAME[id])}</td></tr>
+ <tr><td>Status</td><td>${s.st}</td></tr>
+ <tr><td>APIs assigned</td><td>${apis}</td></tr>
+ <tr><td>Records processed</td><td>${st.records}</td></tr>
+ <tr><td>Last activity</td><td>${st.last||'—'}</td></tr>
+ <tr><td>Mission history</td><td>${st.history.slice(-6).reverse().map(h=>`<div>${esc(h)}</div>`).join('')||'<span class="hint">None yet</span>'}</td></tr></table>`;
+ $('prof').style.display='flex';}
+function closeProfile(){$('prof').style.display='none';}
+$('prof').onclick=e=>{if(e.target.id==='prof')closeProfile();};
+
+/* ================= ISOMETRIC PIXEL HQ ================= */
+const HQ={cv:$('hqc'),W:900,H:560,hits:[],sprites:{},t0:performance.now()};
+HQ.c=HQ.cv.getContext('2d');HQ.dpr=Math.min(devicePixelRatio||1,2);
+HQ.cv.width=HQ.W*HQ.dpr;HQ.cv.height=HQ.H*HQ.dpr;
+const OX=450,OY=200,SX=28,SY=14,ZS=28;
+const P=(x,y,z=0)=>[OX+(x-y)*SX,OY+(x+y)*SY-z*ZS];
+const hexA=(h,a)=>{const n=parseInt(h.slice(1),16);return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`;};
+function poly(pts,fill,stroke,lw=1){const c=HQ.c;c.beginPath();pts.forEach((p,i)=>i?c.lineTo(p[0],p[1]):c.moveTo(p[0],p[1]));c.closePath();
+ if(fill){c.fillStyle=fill;c.fill();}if(stroke){c.strokeStyle=stroke;c.lineWidth=lw;c.stroke();}}
+function line(a,b,col,lw=1){const c=HQ.c;c.beginPath();c.moveTo(a[0],a[1]);c.lineTo(b[0],b[1]);c.strokeStyle=col;c.lineWidth=lw;c.stroke();}
+
+function drawWalls(){
+ const H=4,glass='rgba(40,90,160,.18)',mull='rgba(120,180,230,.35)';
+ poly([P(0,0,0),P(0,12,0),P(0,12,H),P(0,0,H)],glass);
+ poly([P(0,0,0),P(12,0,0),P(12,0,H),P(0,0,H)],glass);
+ for(let i=0;i<=12;i+=1.5){line(P(0,i,0),P(0,i,H),mull);line(P(i,0,0),P(i,0,H),mull);}
+ line(P(0,0,H),P(0,12,H),'rgba(34,230,255,.6)',2);line(P(0,0,H),P(12,0,H),'rgba(34,230,255,.6)',2);
+ let s=7;const rnd=()=>(s=(s*9301+49297)%233280)/233280;   // fixed seed: decorative skyline
+ for(let i=0;i<40;i++){const a=rnd()*12,z=1+rnd()*2.5,warm=rnd()<.7;
+  const [px,py]=rnd()<.5?P(0,a,z):P(a,0,z);HQ.c.fillStyle=warm?'#ffd27a':'#7fe7ff';HQ.c.fillRect(px,py,3,3);}
+ poly([P(5,0,1.6),P(8,0,1.6),P(8,0,3),P(5,0,3)],'rgba(230,36,41,.18)','#e62429',1.5);
+ const [tx,ty]=P(6.5,0,2.3);HQ.c.fillStyle='#ffd0d0';HQ.c.font='bold 12px system-ui';HQ.c.textAlign='center';HQ.c.fillText('WEATHER INTEL',tx,ty+4);
+}
+function drawFloor(t){
+ poly([P(0,0),P(12,0),P(12,12),P(0,12)],'#0b1b33');
+ for(let i=0;i<=12;i++){line(P(i,0),P(i,12),'rgba(34,230,255,.12)');line(P(0,i),P(12,i),'rgba(34,230,255,.12)');}
+ poly([P(0,0),P(12,0),P(12,12),P(0,12)],null,'#22e6ff',2);
+ const c=HQ.c;c.save();c.shadowColor='#22e6ff';c.shadowBlur=14;
+ const ring=[];for(let k=0;k<=48;k++){const a=k/48*Math.PI*2;ring.push(P(6+Math.cos(a)*1.8,6+Math.sin(a)*1.8));}
+ poly(ring,null,`rgba(34,230,255,${.5+.3*Math.sin(t*2)})`,2);c.restore();
+}
+function drawDesk(id,working,t){
+ const [x,y]=DESKS[id],col=COL[id],h=.8,x0=x-.8,x1=x+.8,y0=y-.45,y1=y+.45;
+ poly([P(x0,y1,0),P(x1,y1,0),P(x1,y1,h),P(x0,y1,h)],'#0a1322');
+ poly([P(x1,y0,0),P(x1,y1,0),P(x1,y1,h),P(x1,y0,h)],'#0d1828');
+ poly([P(x0,y0,h),P(x1,y0,h),P(x1,y1,h),P(x0,y1,h)],'#18304f','rgba(34,230,255,.5)');
+ poly([P(x-.5,y0+.1,h),P(x+.5,y0+.1,h),P(x+.5,y0+.1,h+.7),P(x-.5,y0+.1,h+.7)],'#0a0f18');
+ const a=working?.55+.3*Math.abs(Math.sin(t*5)):.2;
+ poly([P(x-.42,y0+.12,h+.06),P(x+.42,y0+.12,h+.06),P(x+.42,y0+.12,h+.64),P(x-.42,y0+.12,h+.64)],hexA(col,a));
+}
+function pixFrame(col,typing,err){
+ const cv=document.createElement('canvas');cv.width=16;cv.height=24;const x=cv.getContext('2d');
+ const PAL={k:'#05080c',s:'#f1c27d',h:col.hair,c:col.suit,a:err?'#ff3b3b':col.accent,d:'#1c232c',b:'#0a0f14'};
+ const R=(k,x0,y0,w,h)=>{x.fillStyle=PAL[k];x.fillRect(x0,y0,w,h);};
+ R('h',5,1,6,2);R('s',5,3,6,5);R('a',6,5,4,1);
+ R('k',7,8,2,1);
+ R('c',4,9,8,7);R('k',3,9,1,7);R('k',12,9,1,7);
+ R('a',7,10,2,2);
+ if(typing){R('c',2,11,2,3);R('s',4,13,3,2);R('c',12,11,2,3);R('s',9,13,3,2);}
+ else{R('c',2,9,2,6);R('c',12,9,2,6);R('s',2,15,2,1);R('s',12,15,2,1);}
+ R('d',5,16,2,6);R('d',9,16,2,6);R('b',5,22,3,2);R('b',8,22,3,2);
+ return cv;}
+const buildSprites=()=>AGENTS.forEach((a,i)=>{const col={hair:HAIR[i%HAIR.length],suit:'#7d8b99',accent:COL[a.id]};
+ HQ.sprites[a.id]={A:costumed(a.id,false,false,col),B:costumed(a.id,true,false,col),eA:costumed(a.id,false,true,col),eB:costumed(a.id,true,true,col)};});
+
+/* costume layers: [x, y, w, h, color] in the 16x24 sprite grid; back layers sit behind the body */
+const COSTUME={
+ THOR:{back:[[1,7,14,16,'#b3121a']],front:[[4,0,8,3,'#c9a24a'],[2,0,2,4,'#e8c04a'],[12,0,2,4,'#e8c04a']]},
+ STORM:{back:[[1,7,14,15,'#e8f6ff']],front:[[7,12,2,2,'#22e6ff'],[6,14,2,2,'#22e6ff'],[7,16,2,2,'#22e6ff']]},
+ VISION:{front:[[4,0,8,2,'#6a3fb0'],[7,2,2,1,'#b36bff'],[2,9,3,4,'#6a3fb0'],[11,9,3,4,'#6a3fb0']]},
+ FROST:{back:[[1,8,14,4,'#6fd8ff']],front:[[4,0,8,2,'#bfefff'],[1,8,3,4,'#dffaff'],[12,8,3,4,'#dffaff']]},
+ RADAR:{back:[[12,4,3,6,'#3dffa0'],[13,10,1,5,'#7a8593']],front:[[5,5,6,1,'#3dffa0']]},
+ HAWKEYE:{back:[[0,3,1,16,'#c9a24a'],[12,6,3,8,'#6b4a2a']],front:[[3,0,10,3,'#2b2b2b'],[3,3,1,4,'#2b2b2b'],[12,3,1,4,'#2b2b2b'],[4,9,8,1,'#ffb020']]},
+ 'IRON MAN':{back:[[1,8,14,3,'#e8c04a']],front:[[4,1,8,7,'#e62429'],[5,4,2,1,'#22e6ff'],[9,4,2,1,'#22e6ff'],[3,9,10,1,'#e8c04a']]},
+ 'NICK FURY':{back:[[1,9,14,15,'#111111']],front:[[3,0,10,2,'#1a1a1a'],[2,2,12,1,'#1a1a1a'],[9,4,2,2,'#05080c']]}
+};
+const COSTUME_NAME={THOR:'Red cape, gold horned helmet',STORM:'White cape, cyan lightning',VISION:'Violet trim, forehead gem',FROST:'Ice cowl, frost pauldrons',RADAR:'Green visor, back-mounted dish',HAWKEYE:'Hood, bow and quiver',"IRON MAN":'Red faceplate, gold trim, arc reactor',"NICK FURY":'Long black coat, eyepatch, hat'};
+function costumed(id,typing,err,col){
+ const c=COSTUME[id]||{},cv=document.createElement('canvas');cv.width=16;cv.height=24;const x=cv.getContext('2d');
+ const draw=list=>(list||[]).forEach(([a,b,w,h,f])=>{x.fillStyle=f;x.fillRect(a,b,w,h);});
+ draw(c.back);
+ x.drawImage(pixFrame(col,typing,err),0,0);
+ draw(c.front);
+ return cv;}
+
+buildSprites();
+function drawBot(id,t,i){
+ const c=HQ.c,[x,y]=DESKS[id],st=(S.agents[id]||{}).st||'IDLE',working=st==='WORKING',err=st==='ERROR';
+ const key=(err?'e':'')+(working&&Math.floor(t*4+i)%2?'B':'A');
+ const [sx,sy]=P(x,y+.95),bob=working?0:Math.sin(t*1.4+i)*1.2;
+ const fx=sx-32,fy=sy-96+bob;
+ c.imageSmoothingEnabled=false;c.drawImage(HQ.sprites[id][key],fx,fy,64,96);
+ HQ.hits.push({id,x:fx,y:fy,w:64,h:96});
+ const label=err?'ERROR':working?'WORKING':'IDLE',tag=err?'#ff3b3b':working?'#22e6ff':'#8fa3b3';
+ c.font='bold 11px Consolas,monospace';const w=Math.max(c.measureText(id).width,c.measureText(label).width)+16;
+ const ty=fy-6;
+ c.fillStyle='rgba(8,12,22,.92)';c.fillRect(sx-w/2,ty-30,w,30);
+ c.strokeStyle=tag;c.lineWidth=1;c.strokeRect(sx-w/2+.5,ty-29.5,w-1,29);
+ c.textAlign='center';c.fillStyle=COL[id];c.fillText(id,sx,ty-16);
+ c.font='10px Consolas,monospace';c.fillStyle=tag;c.fillText(label,sx,ty-4);
+}
+
+function drawHQ(){
+ const c=HQ.c,t=(performance.now()-HQ.t0)/1000;
+ HQ.hits=[];c.setTransform(HQ.dpr,0,0,HQ.dpr,0,0);
+ c.fillStyle='#070d1d';c.fillRect(0,0,HQ.W,HQ.H);
+ drawWalls();drawFloor(t);
+ const items=[];
+ AGENTS.forEach((a,i)=>{const [x,y]=DESKS[a.id],working=(S.agents[a.id]||{}).st==='WORKING';
+  items.push({d:x+y,fn:()=>drawDesk(a.id,working,t)});
+  items.push({d:x+y+1.2,fn:()=>drawBot(a.id,t,i)});});
+ items.sort((p,q)=>p.d-q.d).forEach(it=>it.fn());
+ requestAnimationFrame(drawHQ);}
+HQ.cv.addEventListener('click',e=>{const r=HQ.cv.getBoundingClientRect(),mx=(e.clientX-r.left)*HQ.W/r.width,my=(e.clientY-r.top)*HQ.H/r.height;
+ const h=[...HQ.hits].reverse().find(b=>mx>=b.x&&mx<=b.x+b.w&&my>=b.y&&my<=b.y+b.h);if(h)openProfile(h.id);});
+
+renderAll();
+log('NICK FURY','Command center online.','ok');
+requestAnimationFrame(drawHQ);
+globalScan();
+</script>
+</body></html>
