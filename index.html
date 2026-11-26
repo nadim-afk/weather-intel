@@ -38,7 +38,13 @@ button:hover{border-color:var(--cyan);color:var(--cyan)}
 button:disabled{opacity:.4;cursor:not-allowed}
 button.red{color:var(--red);border-color:#5a1a1d}
 input{background:#070b13;border:1px solid var(--line);color:var(--txt);padding:8px;font:inherit;width:100%;margin-bottom:8px;border-radius:8px}
+input[type="password"]{margin-bottom:0}
 .row{display:flex;gap:6px;flex-wrap:wrap}
+.api-form{display:grid;grid-template-columns:1fr 2fr auto;gap:6px;margin:10px 0}
+.api-form input{margin:0}
+.api-key-wrap{display:flex;gap:6px;margin-top:6px}
+.api-key-wrap input{flex:1}
+@media(max-width:700px){.api-form{grid-template-columns:1fr}.api-key-wrap{flex-direction:column}}
 .loc{display:flex;justify-content:space-between;align-items:center;padding:8px;border-bottom:1px solid var(--line);cursor:pointer;border-radius:6px}
 .loc.sel{background:rgba(34,230,255,.08);box-shadow:inset 2px 0 var(--cyan)}
 .agent{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px dashed var(--line)}
@@ -131,6 +137,8 @@ try{S.locs=JSON.parse(localStorage.getItem('wi.locs'))||[];}catch(e){}
 if(!S.locs.length)S.locs=DEFAULTS.slice();
 S.sel=S.locs[0]?.id||null;
 const saveLocs=()=>{try{localStorage.setItem('wi.locs',JSON.stringify(S.locs))}catch(e){}};
+try{S.customApis=JSON.parse(localStorage.getItem('wi.customApis'))||[];}catch(e){S.customApis=[];}
+const saveCustomApis=()=>{try{localStorage.setItem('wi.customApis',JSON.stringify(S.customApis))}catch(e){}};
 const AS=id=>S.agentStats[id]||(S.agentStats[id]={records:0,history:[],last:null});
 const bump=(id,n=1)=>{AS(id).records+=n;};
 const involve=(id,mission)=>{const a=AS(id);a.history.push(`${now()} · ${mission}`);a.last=now();};
@@ -256,6 +264,53 @@ $('bCsv').onclick=()=>{
  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.map(r=>r.join(',')).join('\n')],{type:'text/csv'}));a.download='weather-records.csv';a.click();
  log('VISION',`Exported ${rows.length-1} hourly records.`,'ok');};
 
+async function testCustomApi(id,key=$('apiKey')?.value.trim()){
+ const api=S.customApis.find(a=>a.id===id);if(!api)return;
+ const headers={};if(key){headers['X-API-Key']=key;headers.Authorization=`Bearer ${key}`;}
+ const t0=performance.now();
+ try{
+  const r=await fetch(api.url,{headers});
+  const ms=Math.round(performance.now()-t0);
+  if(!r.ok)throw new Error(`HTTP ${r.status}`);
+  Object.assign(api,{st:r.status===204?'HEALTHY':ms<2000?'HEALTHY':'DEGRADED',ms,at:now(),err:null});
+  log('IRON MAN',`${api.name} responded in ${ms} ms — ${api.st}`,api.st==='HEALTHY'?'ok':'warn');
+ }catch(e){
+  Object.assign(api,{st:'FAILED',ms:null,at:now(),err:e.message});
+  log('IRON MAN',`${api.name} check failed: ${e.message}`,'err');
+ }
+ saveCustomApis();renderApi();
+}
+
+$('api').onclick=e=>{
+ const add=e.target.closest('#apiAdd');
+ if(add){
+  const name=$('apiName').value.trim();
+  const url=$('apiUrl').value.trim();
+  const key=$('apiKey').value.trim();
+  if(!name||!url){log('IRON MAN','API name and URL are required.','warn');return;}
+  try{
+   const parsed=new URL(url);
+   if(!['http:','https:'].includes(parsed.protocol))throw new Error('Only HTTP and HTTPS URLs are supported');
+  }catch(err){log('IRON MAN',err.message,'err');return;}
+  if(S.customApis.some(a=>a.url===url)){log('IRON MAN','This API endpoint is already added.','warn');return;}
+  S.customApis.push({id:Date.now().toString(36),name,url,st:'DISCOVERED',ms:null,at:null,err:null});
+  saveCustomApis();renderApi();log('IRON MAN',`${name} added to the API catalog.`,'ok');
+  testCustomApi(S.customApis[S.customApis.length-1].id,key);
+  return;
+ }
+ const toggle=e.target.closest('#apiKeyToggle');
+ if(toggle){const key=$('apiKey');key.type=key.type==='password'?'text':'password';toggle.textContent=key.type==='password'?'SHOW':'HIDE';return;}
+ const test=e.target.closest('[data-api-test]');
+ if(test)testCustomApi(test.dataset.apiTest);
+ const remove=e.target.closest('[data-api-remove]');
+ if(remove){
+  const api=S.customApis.find(a=>a.id===remove.dataset.apiRemove);
+  S.customApis=S.customApis.filter(a=>a.id!==remove.dataset.apiRemove);
+  saveCustomApis();renderApi();
+  if(api)log('IRON MAN',`${api.name} removed from the API catalog.`,'warn');
+ }
+};
+
 function spark(vals){const w=640,h=150,mn=Math.min(...vals),mx=Math.max(...vals),r=(mx-mn)||1;
  const pts=vals.map((v,i)=>`${(i/(vals.length-1))*w},${h-((v-mn)/r)*(h-24)-12}`).join(' ');
  return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}"><polyline fill="none" stroke="#22e6ff" stroke-width="2" points="${pts}"/>
@@ -310,8 +365,16 @@ function renderApi(){
  $('api').innerHTML=`<table><tr><th>API</th><th>STATUS</th><th>LATENCY</th><th>LAST CHECKED</th></tr>
  <tr><td><b>Open-Meteo</b><div class="hint">forecast · archive · geocoding</div>${o.err?`<div class="err hint">${esc(o.err)}</div>`:''}</td><td class="${oc}">${o.st}</td><td>${o.ms??'—'} ms</td><td>${o.at?o.at.toTimeString().slice(0,8):'—'}</td></tr>
  <tr><td><b>RainViewer</b><div class="hint">radar frames · precipitation</div>${rv.err?`<div class="err hint">${esc(rv.err)}</div>`:''}</td><td class="${rc}">${rv.st}</td><td>${rv.ms??'—'} ms</td><td>${rv.at?rv.at.toTimeString().slice(0,8):'—'}</td></tr>
+ ${S.customApis.map(a=>{const cls={HEALTHY:'ok',DEGRADED:'warn',FAILED:'err'}[a.st]||'';return `<tr><td><b>${esc(a.name)}</b><div class="hint">${esc(a.url)}</div>${a.err?`<div class="err hint">${esc(a.err)}</div>`:''}</td><td class="${cls}">${esc(a.st||'DISCOVERED')}</td><td>${a.ms??'—'} ms</td><td>${a.at||'—'} <button data-api-test="${esc(a.id)}">TEST</button> <button class="red" data-api-remove="${esc(a.id)}">X</button></td></tr>`;}).join('')}
  ${others.map(([n,s,note])=>`<tr><td><b>${n}</b><div class="hint">${note}</div></td><td>${s}</td><td>—</td><td>—</td></tr>`).join('')}</table>
- <p class="hint">Open-Meteo and RainViewer are connected. Other APIs are listed for reference and are not called. Radar data © RainViewer.</p>`;}
+ <div class="h3">ADD API</div>
+ <div class="api-form">
+  <input id="apiName" placeholder="API name">
+  <input id="apiUrl" placeholder="https://api.example.com/endpoint">
+  <button id="apiAdd">ADD API</button>
+ </div>
+ <div class="api-key-wrap"><input id="apiKey" type="password" placeholder="API key (optional)"><button id="apiKeyToggle" type="button">SHOW</button></div>
+ <p class="hint">Custom APIs are saved in this browser. Keys are sent via X-API-Key and Authorization: Bearer headers. Radar data © RainViewer.</p>`;}
 
 function renderMissions(){
  $('missions').innerHTML=S.missions.slice(0,8).map(m=>`<div class="mis"><b>${esc(m.name)}</b> <span class="${m.status==='COMPLETED'?'ok':m.status==='FAILED'?'err':'warn'}">${m.status}</span><div class="hint">${esc(m.squad)} · ${m.start} → ${m.end||'…'}</div></div>`).join('')||'<p class="hint">No missions run yet.</p>';
